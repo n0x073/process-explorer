@@ -34,6 +34,11 @@ bool waitExit(int pidfd, int timeoutMs);      // true once the process has exite
 int signalProcess(int pid, quint64 start, int sig); // 0 or errno
 QString findGpu();
 
+// Existing "<datadir>/<sub>" directories in XDG priority order: XDG_DATA_HOME,
+// then XDG_DATA_DIRS. Flatpak and snap export dirs are appended as fallback in
+// case the session was started without their profile.d scripts.
+QStringList dataDirs(const QString &sub);
+
 struct ThreadRow {
     int tid;
     QString name;

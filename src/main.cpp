@@ -1,4 +1,5 @@
 #include "mainwindow.h"
+#include "procfs.h"
 
 #include <QApplication>
 #include <QDir>
@@ -40,13 +41,19 @@ int main(int argc, char **argv)
     QApplication::setDesktopFileName(QStringLiteral("procexp-linux"));
     qRegisterMetaType<SnapshotPtr>();
 
+    // Qt already derives icon paths from XDG_DATA_DIRS; only add what is missing
     QStringList paths = QIcon::themeSearchPaths();
-    for (const QString &d : {QDir::homePath() + "/.local/share/flatpak/exports/share/icons",
-                             QStringLiteral("/var/lib/flatpak/exports/share/icons")})
-        if (QDir(d).exists())
+    for (QString &p : paths)
+        p = QDir::cleanPath(p);
+    for (const QString &d : pf::dataDirs(QStringLiteral("icons")))
+        if (!paths.contains(d))
             paths << d;
     QIcon::setThemeSearchPaths(paths);
-    QIcon::setFallbackSearchPaths(QIcon::fallbackSearchPaths() << QStringLiteral("/usr/share/pixmaps"));
+    QStringList fallback = QIcon::fallbackSearchPaths();
+    for (const QString &d : pf::dataDirs(QStringLiteral("pixmaps")))
+        if (!fallback.contains(d))
+            fallback << d;
+    QIcon::setFallbackSearchPaths(fallback);
 
     MainWindow w;
     w.show();

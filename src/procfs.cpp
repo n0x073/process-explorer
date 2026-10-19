@@ -6,6 +6,7 @@
 #include <QFileInfo>
 #include <QLocale>
 #include <QSet>
+#include <QStandardPaths>
 #include <QTextStream>
 
 #include <arpa/inet.h>
@@ -229,6 +230,20 @@ QString findGpu()
             return p;
     }
     return {};
+}
+
+QStringList dataDirs(const QString &sub)
+{
+    QStringList bases = QStandardPaths::standardLocations(QStandardPaths::GenericDataLocation);
+    bases << QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation) + QStringLiteral("/flatpak/exports/share")
+          << QStringLiteral("/var/lib/flatpak/exports/share") << QStringLiteral("/var/lib/snapd/desktop");
+    QStringList out;
+    for (const QString &b : std::as_const(bases)) {
+        const QString d = QDir::cleanPath(b + '/' + sub);
+        if (!out.contains(d) && QFileInfo(d).isDir())
+            out << d;
+    }
+    return out;
 }
 
 QVector<int> threadIds(int pid)
@@ -535,12 +550,8 @@ static QString execToken(const QString &ex)
 
 DesktopIndex::DesktopIndex()
 {
-    const QString home = QDir::homePath();
-    const QStringList dirs = {home + "/.local/share/applications",
-                              home + "/.local/share/flatpak/exports/share/applications",
-                              "/var/lib/flatpak/exports/share/applications",
-                              "/usr/local/share/applications", "/usr/share/applications",
-                              "/var/lib/snapd/desktop/applications"};
+    // earlier dirs win (user overrides system), matching XDG lookup rules
+    const QStringList dirs = pf::dataDirs(QStringLiteral("applications"));
     for (const QString &d : dirs) {
         const auto files = QDir(d).entryList({QStringLiteral("*.desktop")}, QDir::Files, QDir::Name);
         for (const QString &f : files) {
