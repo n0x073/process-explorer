@@ -80,7 +80,7 @@ PropertiesDialog::PropertiesDialog(MainWindow *main, Node *n)
 {
     setAttribute(Qt::WA_DeleteOnClose);
     setWindowTitle(QStringLiteral("%1:%2 Properties").arg(m_name).arg(m_pid));
-    resize(720, 620);
+    resize(820, 640);
     m_tabs = new QTabWidget;
     m_tabs->addTab(imageTab(n), tr("Image"));
     m_tabs->addTab(perfTab(), tr("Performance"));
@@ -307,7 +307,10 @@ QWidget *PropertiesDialog::threadsTab()
     m_thrModel->setFormatter(1, [](const QVariant &v) { return fmtCpu(v.toDouble()); });
     m_thrModel->setFormatter(6, [](const QVariant &v) { return fmtTime(v.toDouble()); });
     m_thrModel->setFormatter(7, [](const QVariant &v) { return fmtTime(v.toDouble()); });
-    lay->addWidget(makeTable(m_thrModel, 1, Qt::DescendingOrder), 1);
+    auto *tv = makeTable(m_thrModel, 1, Qt::DescendingOrder);
+    tv->horizontalHeader()->setSectionResizeMode(QHeaderView::ResizeToContents);
+    tv->horizontalHeader()->setStretchLastSection(true);
+    lay->addWidget(tv, 1);
     m_thrCount = new QLabel;
     lay->addWidget(m_thrCount);
     return w;
@@ -340,8 +343,8 @@ QWidget *PropertiesDialog::tcpTab()
     auto *lay = new QVBoxLayout(w);
     m_tcpModel = new ListModel({"Protocol", "Local Address", "Remote Address", "State"}, this);
     auto *v = makeTable(m_tcpModel, 0);
-    v->setColumnWidth(1, 220);
-    v->setColumnWidth(2, 220);
+    v->horizontalHeader()->setSectionResizeMode(QHeaderView::ResizeToContents);
+    v->horizontalHeader()->setStretchLastSection(true);
     lay->addWidget(v, 1);
     return w;
 }

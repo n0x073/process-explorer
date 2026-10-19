@@ -90,6 +90,11 @@ MainWindow::MainWindow()
     buildMenus();
     buildToolbar();
     buildStatus();
+    connect(m_tree->selectionModel(), &QItemSelectionModel::currentChanged, this, [this] {
+        refreshLower();
+        updateActions();
+    });
+    updateActions();
 
     if (!restoreGeometry(m_settings.value("geometry").toByteArray()))
         resize(1150, 760);
@@ -155,17 +160,17 @@ void MainWindow::buildTree()
         for (int r = first; r <= last; ++r)
             m_tree->expand(m_proxy->index(r, 0, parent));
     });
-    connect(m_tree->selectionModel(), &QItemSelectionModel::currentChanged, this, [this] { refreshLower(); });
 }
 
 void MainWindow::buildLower()
 {
-    m_handleModel = new ListModel({"Type", "Name", "FD"}, this);
-    m_handleModel->setNumeric({2});
-    m_dllModel = new ListModel({"Name", "Path", "Base", "Size", "Mapping"}, this);
-    m_dllModel->setNumeric({3});
-    m_dllModel->setFormatter(2, [](const QVariant &v) { return QStringLiteral("0x%1").arg(v.toULongLong(), 0, 16).toUpper().replace("0X", "0x"); });
-    m_dllModel->setFormatter(3, [](const QVariant &v) { return fmtK(v.toLongLong()); });
+    // the long path column comes last so it receives the stretch
+    m_handleModel = new ListModel({"Type", "FD", "Name"}, this);
+    m_handleModel->setNumeric({1});
+    m_dllModel = new ListModel({"Name", "Base", "Size", "Mapping", "Path"}, this);
+    m_dllModel->setNumeric({2});
+    m_dllModel->setFormatter(1, [](const QVariant &v) { return QStringLiteral("0x%1").arg(v.toULongLong(), 0, 16).toUpper().replace("0X", "0x"); });
+    m_dllModel->setFormatter(2, [](const QVariant &v) { return fmtK(v.toLongLong()); });
     m_lowerProxy = new QSortFilterProxyModel(this);
     m_lowerProxy->setSortRole(SortRole);
     m_lower = new QTableView;
@@ -315,17 +320,25 @@ void MainWindow::buildActions()
     }
 }
 
-void MainWindow::fillProcessMenu(QMenu *m)
+// Process actions live in the toolbar, menus and as shortcuts, so their state must
+// follow the selection (and the selected process dying), not only the menu opening.
+void MainWindow::updateActions()
 {
     Node *n = selectedNode();
     const bool alive = n && n->pid > 0 && n->state != Node::Dying;
     aSuspend->setText(alive && n->info.stopped() ? tr("&Resume") : tr("&Suspend"));
     for (QAction *a : std::as_const(m_prioActs))
-        a->setChecked(false);
-    if (alive && m_prioActs.contains(n->info.nice))
-        m_prioActs[n->info.nice]->setChecked(true);
-    m->addMenu(m_prioMenu);
+        a->setChecked(alive && a == m_prioActs.value(n->info.nice));
     m_prioMenu->setEnabled(alive);
+    for (QAction *a : {aAffinity, aTerm, aKill, aKillTree, aRestart, aSuspend, aOpenLoc, aSearch, aProps})
+        a->setEnabled(alive);
+    aCopy->setEnabled(n != nullptr);
+}
+
+void MainWindow::fillProcessMenu(QMenu *m)
+{
+    updateActions();
+    m->addMenu(m_prioMenu);
     for (QAction *a : {aAffinity, (QAction *)nullptr, aTerm, aKill, aKillTree, aRestart, aSuspend, (QAction *)nullptr,
                        aOpenLoc, aSearch, (QAction *)nullptr, aCopy, aProps}) {
         if (!a)
@@ -333,8 +346,6 @@ void MainWindow::fillProcessMenu(QMenu *m)
         else
             m->addAction(a);
     }
-    for (QAction *a : {aAffinity, aTerm, aKill, aKillTree, aRestart, aSuspend, aOpenLoc, aSearch, aProps})
-        a->setEnabled(alive);
 }
 
 void MainWindow::buildMenus()
@@ -485,6 +496,7 @@ void MainWindow::onSnapshot(SnapshotPtr snap)
     for (Graph *g : std::as_const(m_tbGraphs))
         g->advance();
     refreshLower();
+    updateActions();
     updateTray();
     if (m_sysinfo)
         m_sysinfo->refresh();
@@ -523,7 +535,7 @@ void MainWindow::setLowerMode(LowerMode mode, bool show)
     aHandles->setChecked(mode == LowerHandles);
     aDlls->setChecked(mode == LowerDlls);
     m_lowerProxy->setSourceModel(mode == LowerHandles ? m_handleModel : m_dllModel);
-    const QVector<int> widths = mode == LowerHandles ? QVector<int>{110, 600, 60} : QVector<int>{200, 450, 130, 90, 90};
+    const QVector<int> widths = mode == LowerHandles ? QVector<int>{110, 60} : QVector<int>{220, 130, 90, 80};
     for (int i = 0; i < widths.size(); ++i)
         m_lower->setColumnWidth(i, widths[i]);
     if (show && !m_lower->isVisible())
@@ -547,11 +559,11 @@ void MainWindow::refreshLower()
         auto hs = readHandles(n->pid, &sockets);
         std::sort(hs.begin(), hs.end(), [](const HandleRow &a, const HandleRow &b) { return a.fd < b.fd; });
         for (const HandleRow &h : hs)
-            rows.push_back({h.type, h.name, h.fd});
+            rows.push_back({h.type, h.fd, h.name});
         m_handleModel->setRows(std::move(rows));
     } else {
         for (const MapRow &m : readMaps(n->pid))
-            rows.push_back({m.name, m.path, m.base, qint64(m.size), m.mapping});
+            rows.push_back({m.name, m.base, qint64(m.size), m.mapping, m.path});
         m_dllModel->setRows(std::move(rows));
     }
 }

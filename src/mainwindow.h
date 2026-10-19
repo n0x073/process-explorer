@@ -55,6 +55,7 @@ private:
     void buildToolbar();
     void buildStatus();
     void fillProcessMenu(QMenu *m);
+    void updateActions();
     QAction *act(const QString &text, const QString &shortcut = {}, const QString &icon = {}, bool checkable = false);
 
     void request();

@@ -12,6 +12,7 @@
 #include <time.h>
 #include <unistd.h>
 
+#include <charconv>
 #include <cstring>
 
 using namespace pf;
@@ -71,6 +72,18 @@ static int countFds(int dirfd)
             ++n;
     closedir(d);
     return n;
+}
+
+// strtod() honours LC_NUMERIC, which QApplication sets from the user locale
+// (de_DE: decimal comma) -> "1.07" would parse as 1. /proc always uses '.'.
+static double parseDouble(const char *&p)
+{
+    while (*p == ' ' || *p == '\t')
+        ++p;
+    double v = 0;
+    auto r = std::from_chars(p, p + strlen(p), v);
+    p = r.ptr;
+    return v;
 }
 
 static QString displayName(const QString &comm, const QString &exe, const QString &argv0)
@@ -215,9 +228,11 @@ void Collector::collect()
         if (p.kind == Kind::KThread) {
             p.vms = p.rss = -1;
         } else if (readAt(pdir, "statm", buf, sizeof buf) > 0) {
+            // size resident shared ...: take resident and shared from the same
+            // snapshot, otherwise resident - shared can come out negative
             char *m = buf;
             strtoll(m, &m, 10);
-            strtoll(m, &m, 10);
+            p.rss = strtoll(m, &m, 10) * PAGE_SIZE;
             p.shared = strtoll(m, &m, 10) * PAGE_SIZE;
             p.priv = std::max<qint64>(0, p.rss - p.shared);
         }
@@ -347,12 +362,15 @@ void Collector::readSystem(SysInfo &s, double dt)
 
     double up = 0;
     if (readSmall("/proc/uptime", buf, sizeof buf) > 0)
-        up = strtod(buf, nullptr);
+    {
+        const char *q = buf;
+        up = parseDouble(q);
+    }
     s.boot = QDateTime::currentMSecsSinceEpoch() / 1000.0 - up;
     if (readSmall("/proc/loadavg", buf, sizeof buf) > 0) {
-        char *q = buf;
+        const char *q = buf;
         for (double &l : s.load)
-            l = strtod(q, &q);
+            l = parseDouble(q);
     }
 
     // disks: fields  major minor name rd_ios rd_merges rd_sectors rd_ticks wr_ios wr_merges wr_sectors ...
@@ -406,8 +424,10 @@ void Collector::readSystem(SysInfo &s, double dt)
 
     if (!m_gpuPath.isEmpty()) {
         QByteArray p = m_gpuPath.toLocal8Bit();
-        if (readSmall(p.constData(), buf, 64) > 0)
-            s.gpu = strtod(buf, nullptr);
+        if (readSmall(p.constData(), buf, 64) > 0) {
+            const char *q = buf;
+            s.gpu = parseDouble(q);
+        }
         QString dev = QFileInfo(m_gpuPath).path();
         s.vramUsed = readText(dev + "/mem_info_vram_used").trimmed().toLongLong();
         s.vramTotal = readText(dev + "/mem_info_vram_total").trimmed().toLongLong();

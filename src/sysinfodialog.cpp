@@ -85,12 +85,18 @@ SystemInfoDialog::SystemInfoDialog(SysHistory *h, QWidget *parent) : QDialog(par
     g = makeGraph(0, {}, 40, "io");
     g->addSeries(&h->diskR, pal::Read);
     g->addSeries(&h->diskW, pal::Write, false);
-    g->valueFn = [h] { return QStringLiteral("R %1   W %2").arg(fmtRate(h->last.diskR), fmtRate(h->last.diskW)); };
+    g->valueFn = [h] {
+        auto r = [](double v) { return v > 0 ? fmtRate(v) : QStringLiteral("0 B/s"); };
+        return QStringLiteral("R %1   W %2").arg(r(h->last.diskR), r(h->last.diskW));
+    };
     row(tr("Disk I/O"), {}, {}, g);
     g = makeGraph(0, {}, 40, "net");
     g->addSeries(&h->netRx, pal::Read);
     g->addSeries(&h->netTx, pal::Write, false);
-    g->valueFn = [h] { return QStringLiteral("Rx %1   Tx %2").arg(fmtRate(h->last.netRx), fmtRate(h->last.netTx)); };
+    g->valueFn = [h] {
+        auto r = [](double v) { return v > 0 ? fmtRate(v) : QStringLiteral("0 B/s"); };
+        return QStringLiteral("Rx %1   Tx %2").arg(r(h->last.netRx), r(h->last.netTx));
+    };
     row(tr("Network"), {}, {}, g);
     if (h->hasGpu) {
         g = makeGraph(100, {}, 40, "gpu");

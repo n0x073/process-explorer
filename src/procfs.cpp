@@ -527,7 +527,7 @@ static QHash<QString, QString> parseDesktop(const QString &path)
         if (!inEntry || eq <= 0)
             continue;
         QString k = l.left(eq);
-        static const QSet<QString> keys = {"Name", "GenericName", "Comment", "Icon", "Exec", "StartupWMClass"};
+        static const QSet<QString> keys = {"Name", "GenericName", "Comment", "Icon", "Exec", "StartupWMClass", "NoDisplay"};
         if (keys.contains(k) && !e.contains(k))
             e.insert(k, l.mid(eq + 1));
     }
@@ -560,16 +560,26 @@ DesktopIndex::DesktopIndex()
                 continue;
             int idx = m_entries.size();
             m_entries.push_back({e.value("Name"), e.value("Comment", e.value("GenericName")), e.value("Icon")});
-            QString stem = f.chopped(8);
-            QStringList keys = {QChar('@') + stem, stem.toLower(), stem.toLower().section('.', -1)};
-            QString tok = execToken(e.value("Exec"));
-            if (!tok.isEmpty())
-                keys << tok;
-            if (e.contains("StartupWMClass"))
-                keys << e.value("StartupWMClass").toLower();
-            for (const QString &k : keys)
-                if (!m_byKey.contains(k))
-                    m_byKey.insert(k, idx);
+            // A key can be claimed by several files (code.desktop and code-url-handler.desktop
+            // both run "code"). Stronger evidence wins: file name > WM class > Exec command;
+            // hidden helper entries (NoDisplay) lose ties. Equal rank: earlier dir wins.
+            const QString stem = f.chopped(8);
+            const int hidden = e.value("NoDisplay") == QLatin1String("true") ? 1 : 0;
+            auto claim = [&](const QString &k, int rank) {
+                if (k.isEmpty())
+                    return;
+                rank = rank * 2 + hidden;
+                auto it = m_byKey.find(k);
+                if (it == m_byKey.end())
+                    m_byKey.insert(k, {idx, rank});
+                else if (rank < it->rank)
+                    *it = {idx, rank};
+            };
+            claim(QChar('@') + stem, 0);
+            claim(stem.toLower(), 1);
+            claim(stem.toLower().section('.', -1), 2);
+            claim(e.value("StartupWMClass").toLower(), 3);
+            claim(execToken(e.value("Exec")), 4);
         }
     }
 }
@@ -579,7 +589,7 @@ const DesktopIndex::Entry *DesktopIndex::lookup(const QString &name, const QStri
     if (!flatpak.isEmpty()) {
         auto it = m_byKey.find(QChar('@') + flatpak);
         if (it != m_byKey.end())
-            return &m_entries[*it];
+            return &m_entries[it->idx];
     }
     for (const QString &c0 : {QFileInfo(exe).fileName(), name}) {
         QString c = c0.toLower();
@@ -592,7 +602,7 @@ const DesktopIndex::Entry *DesktopIndex::lookup(const QString &name, const QStri
                 continue;
             auto it = m_byKey.find(v);
             if (it != m_byKey.end())
-                return &m_entries[*it];
+                return &m_entries[it->idx];
         }
     }
     return nullptr;

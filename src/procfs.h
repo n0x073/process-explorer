@@ -79,5 +79,6 @@ public:
 
 private:
     QVector<Entry> m_entries;
-    QHash<QString, int> m_byKey;
+    struct Slot { int idx, rank; };
+    QHash<QString, Slot> m_byKey;
 };
