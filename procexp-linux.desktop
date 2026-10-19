@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Process Explorer
+GenericName=Process Manager
+Comment=Find out what files, libraries and sockets processes have open
+Exec=procexp
+Icon=utilities-system-monitor
+Categories=System;Monitor;
+Keywords=process;task;manager;kill;cpu;memory;
