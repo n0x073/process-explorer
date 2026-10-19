@@ -101,7 +101,7 @@ Collector::Collector()
             m_disks << b;
 }
 
-Collector::Static Collector::makeStatic(int dirfd, int pid, int ppid, const QString &comm)
+Collector::Static Collector::makeStatic(int dirfd, bool kthread, const QString &comm)
 {
     Static s;
     s.comm = comm;
@@ -136,7 +136,7 @@ Collector::Static Collector::makeStatic(int dirfd, int pid, int ppid, const QStr
             s.unit = *it;
             break;
         }
-    if (pid == 2 || ppid == 2) {
+    if (kthread) {
         s.kind = Kind::KThread;
     } else {
         static const QRegularExpression fp(QStringLiteral("^app-flatpak-(.+)-\\d+\\.scope$"));
@@ -191,6 +191,10 @@ void Collector::collect()
         for (int i = 1; i < 24 && *q; ++i) // f[i] == stat field i+3
             f[i] = strtoll(q, &q, 10);
         p.ppid = int(f[1]);
+        // PF_KTHREAD in stat field 9 ("flags"). Checking for kthreadd as parent (PID 2)
+        // would misfire inside a container's PID namespace, where PID 2 is a normal process.
+        constexpr unsigned long long PF_KTHREAD = 0x00200000;
+        const bool kthread = (static_cast<unsigned long long>(f[6]) & PF_KTHREAD) != 0;
         quint64 ticks = quint64(f[11] + f[12]);
         p.utime = double(f[11]) / CLK_TCK;
         p.stime = double(f[12]) / CLK_TCK;
@@ -204,7 +208,7 @@ void Collector::collect()
 
         auto sit = m_static.find(p.key);
         if (sit == m_static.end())
-            sit = m_static.insert(p.key, makeStatic(pdir, pid, p.ppid, QString::fromLocal8Bit(l + 1, int(r - l - 1))));
+            sit = m_static.insert(p.key, makeStatic(pdir, kthread, QString::fromLocal8Bit(l + 1, int(r - l - 1))));
         const Static &s = *sit;
         p.name = s.name; p.comm = s.comm; p.exe = s.exe; p.cmdline = s.cmdline; p.user = s.user;
         p.cgroup = s.cgroup; p.unit = s.unit; p.flatpak = s.flatpak; p.uid = s.uid; p.kind = s.kind; p.own = s.own;

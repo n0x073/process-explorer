@@ -27,7 +27,7 @@ private:
     struct Prev { quint64 ticks; qint64 io; };
     struct CpuTimes { quint64 total = 0, idle = 0, kernel = 0, iowait = 0; };
 
-    Static makeStatic(int dirfd, int pid, int ppid, const QString &comm);
+    Static makeStatic(int dirfd, bool kthread, const QString &comm);
     void readSystem(SysInfo &s, double dt);
 
     QHash<quint64, Static> m_static;
