@@ -102,7 +102,6 @@ MainWindow::MainWindow()
     m_lower->setVisible(m_settings.value("lowerPane", false).toBool());
     aLower->setChecked(m_lower->isVisible());
     setLowerMode(m_lowerMode);
-    aOnTop->setChecked(m_settings.value("onTop", false).toBool());
     aTray->setChecked(m_settings.value("tray", false).toBool());
 
     m_collector = new Collector;
@@ -210,8 +209,6 @@ void MainWindow::buildActions()
     aExit = act(tr("E&xit"), "Ctrl+Q", "application-exit");
     connect(aExit, &QAction::triggered, this, &QWidget::close);
 
-    aOnTop = act(tr("&Always On Top"), {}, {}, true);
-    connect(aOnTop, &QAction::toggled, this, [this](bool on) { setWindowFlag(Qt::WindowStaysOnTopHint, on); show(); });
     aConfirm = act(tr("&Confirm Kill"), {}, {}, true);
     aConfirm->setChecked(m_confirmKill);
     connect(aConfirm, &QAction::toggled, this, [this](bool on) { m_confirmKill = on; });
@@ -359,7 +356,7 @@ void MainWindow::buildMenus()
     m->addAction(aExit);
 
     m = mb->addMenu(tr("&Options"));
-    m->addActions({aOnTop, aConfirm, aTray});
+    m->addActions({aConfirm, aTray});
     m->addSeparator();
     m->addActions({aHighlight, aColors});
 
@@ -1014,7 +1011,6 @@ void MainWindow::closeEvent(QCloseEvent *e)
     m_settings.setValue("treeMode", m_model->treeMode());
     m_settings.setValue("hideKthreads", m_proxy->hideKThreads());
     m_settings.setValue("highlight", m_model->highlight);
-    m_settings.setValue("onTop", aOnTop->isChecked());
     m_settings.setValue("tray", aTray->isChecked());
     m_timer->stop();
     if (m_tray)

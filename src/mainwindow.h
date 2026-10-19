@@ -113,7 +113,7 @@ private:
     LowerMode m_lowerMode = LowerHandles;
     int m_sortCol = -1, m_sortClicks = 0;
 
-    QAction *aRun, *aRunAdm, *aSave, *aSaveAs, *aExit, *aOnTop, *aConfirm, *aTray, *aHighlight, *aColors;
+    QAction *aRun, *aRunAdm, *aSave, *aSaveAs, *aExit, *aConfirm, *aTray, *aHighlight, *aColors;
     QAction *aSysInfo, *aTreeMode, *aLower, *aHandles, *aDlls, *aRefresh, *aPause, *aColumns, *aKThreads;
     QAction *aProps, *aKill, *aKillTree, *aTerm, *aRestart, *aSuspend, *aAffinity, *aOpenLoc, *aSearch, *aCopy;
     QAction *aFind, *aFindWindow, *aFilter, *aAbout;
