@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-FileCopyrightText: 2026 Process Exp contributors
+
 #include "dialogs.h"
 #include "mainwindow.h"
 #include "widgets.h"
@@ -567,7 +570,7 @@ void PropertiesDialog::refresh()
 // ================================================================== Find
 FindDialog::FindDialog(MainWindow *main) : QDialog(main), m_main(main)
 {
-    setWindowTitle(tr("Process Explorer Search"));
+    setWindowTitle(tr("Process Exp Search"));
     resize(820, 460);
     auto *lay = new QVBoxLayout(this);
     auto *top = new QHBoxLayout;

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-FileCopyrightText: 2026 Process Exp contributors
+
 #include "mainwindow.h"
 #include "collector.h"
 #include "dialogs.h"
@@ -53,7 +56,7 @@ static QIcon appIcon()
 }
 
 MainWindow::MainWindow()
-    : m_settings(QStringLiteral("procexp-linux"), QStringLiteral("procexp")),
+    : m_settings(QStringLiteral("process-exp"), QStringLiteral("process-exp")),
       m_history(std::max(1, int(sysconf(_SC_NPROCESSORS_ONLN))))
 {
     m_interval = m_settings.value("interval", 1000).toInt();
@@ -61,7 +64,7 @@ MainWindow::MainWindow()
     m_lowerMode = m_settings.value("lowerMode", "handles").toString() == QLatin1String("dlls") ? LowerDlls : LowerHandles;
 
     QString user = userName(getuid());
-    setWindowTitle(QStringLiteral("Process Explorer - Linux [%1\\%2]%3")
+    setWindowTitle(QStringLiteral("Process Exp [%1\\%2]%3")
                        .arg(QSysInfo::machineHostName(), user, geteuid() == 0 ? QStringLiteral(" (Administrator)") : QString()));
     setWindowIcon(appIcon());
 
@@ -298,11 +301,13 @@ void MainWindow::buildActions()
     connect(aFilter, &QAction::triggered, this, [this] { m_filter->setFocus(); m_filter->selectAll(); });
     aAbout = act(tr("&About"), {}, "help-about");
     connect(aAbout, &QAction::triggered, this, [this] {
-        QMessageBox::about(this, tr("About Process Explorer for Linux"),
-                           tr("<b>Process Explorer for Linux</b><br><br>A native Qt6/C++ re-implementation of the "
-                              "Sysinternals Process Explorer UI for Linux.<br><br>"
+        QMessageBox::about(this, tr("About Process Exp"),
+                           tr("<b>Process Exp</b> %1<br><br>A process manager for Linux, written in C++ with Qt 6.<br>"
+                              "Inspired by Sysinternals Process Explorer; not affiliated with or endorsed by Microsoft.<br><br>"
                               "Handles = open file descriptors<br>DLLs = mapped shared objects<br>"
-                              "Services = systemd system units<br>Sandboxed apps = Flatpak"));
+                              "Services = systemd system units<br>Sandboxed apps = Flatpak<br><br>"
+                              "License: GNU GPL version 3 or later. This program comes with ABSOLUTELY NO WARRANTY.")
+                               .arg(QStringLiteral(PROCESS_EXP_VERSION)));
     });
 
     m_prioMenu = new QMenu(tr("Set &Priority"), this);
@@ -584,7 +589,7 @@ void MainWindow::selectPid(int pid, LowerMode lower, bool showLower)
 {
     Node *n = m_model->findPid(pid);
     if (!n) {
-        QMessageBox::information(this, tr("Process Explorer"), tr("Process %1 no longer exists.").arg(pid));
+        QMessageBox::information(this, tr("Process Exp"), tr("Process %1 no longer exists.").arg(pid));
         return;
     }
     QModelIndex idx = m_proxy->mapFromSource(m_model->indexOf(n));
@@ -620,13 +625,13 @@ void MainWindow::elevate(const QString &program, const QStringList &args, const 
 {
     QString path = program.startsWith('/') ? program : QStandardPaths::findExecutable(program);
     if (!QStandardPaths::findExecutable("pkexec").isEmpty() && !path.isEmpty()) {
-        if (QMessageBox::question(this, tr("Process Explorer"), err + tr("\n\nRetry with administrator rights (pkexec)?"))
+        if (QMessageBox::question(this, tr("Process Exp"), err + tr("\n\nRetry with administrator rights (pkexec)?"))
             == QMessageBox::Yes) {
             QProcess::startDetached(QStringLiteral("pkexec"), QStringList{path} + args);
             QTimer::singleShot(1500, this, &MainWindow::request);
         }
     } else {
-        QMessageBox::warning(this, tr("Process Explorer"), err);
+        QMessageBox::warning(this, tr("Process Exp"), err);
     }
 }
 
@@ -659,7 +664,7 @@ void MainWindow::killProcess(quint64 key, const QString &name, bool tree, int si
 {
     if (m_confirmKill) {
         QString verb = sig == SIGTERM ? tr("terminate (SIGTERM)") : tr("kill");
-        if (QMessageBox::question(this, tr("Process Explorer"),
+        if (QMessageBox::question(this, tr("Process Exp"),
                                   tr("Are you sure you want to %1 %2%3?").arg(verb, name, tree ? tr(" and all of its descendants") : QString()))
             != QMessageBox::Yes)
             return;
@@ -698,7 +703,7 @@ void MainWindow::restartSelected()
     // Pin the process first; everything below reads/acts on exactly this one.
     int pidfd = openPidfd(pid, n->info.start);
     if (pidfd < 0) {
-        QMessageBox::warning(this, tr("Process Explorer"), tr("%1 no longer exists.").arg(name));
+        QMessageBox::warning(this, tr("Process Exp"), tr("%1 no longer exists.").arg(name));
         return;
     }
     QStringList args = cmdlineArgs(pid);
@@ -706,16 +711,16 @@ void MainWindow::restartSelected()
     QByteArray env = readFile(QStringLiteral("/proc/%1/environ").arg(pid));
     if (args.isEmpty()) {
         ::close(pidfd);
-        QMessageBox::warning(this, tr("Process Explorer"), tr("Unable to restart %1: command line not accessible.").arg(name));
+        QMessageBox::warning(this, tr("Process Exp"), tr("Unable to restart %1: command line not accessible.").arg(name));
         return;
     }
-    if (m_confirmKill && QMessageBox::question(this, tr("Process Explorer"), tr("Are you sure you want to restart %1?").arg(name)) != QMessageBox::Yes) {
+    if (m_confirmKill && QMessageBox::question(this, tr("Process Exp"), tr("Are you sure you want to restart %1?").arg(name)) != QMessageBox::Yes) {
         ::close(pidfd);
         return;
     }
     if (int e = sendSignal(pidfd, SIGTERM); e && e != ESRCH) {
         ::close(pidfd);
-        QMessageBox::warning(this, tr("Process Explorer"), tr("Error terminating %1: %2").arg(name, QString::fromLocal8Bit(strerror(e))));
+        QMessageBox::warning(this, tr("Process Exp"), tr("Error terminating %1: %2").arg(name, QString::fromLocal8Bit(strerror(e))));
         return;
     }
     QApplication::setOverrideCursor(Qt::WaitCursor);
@@ -740,7 +745,7 @@ void MainWindow::restartSelected()
     p.setStandardOutputFile(QProcess::nullDevice());
     p.setStandardErrorFile(QProcess::nullDevice());
     if (!p.startDetached())
-        QMessageBox::warning(this, tr("Process Explorer"), tr("Error starting %1: %2").arg(name, p.errorString()));
+        QMessageBox::warning(this, tr("Process Exp"), tr("Error starting %1: %2").arg(name, p.errorString()));
     request();
 }
 
@@ -769,7 +774,7 @@ void MainWindow::setAffinity()
     cpu_set_t set;
     CPU_ZERO(&set);
     if (sched_getaffinity(n->pid, sizeof set, &set) != 0) {
-        QMessageBox::warning(this, tr("Process Explorer"), QString::fromLocal8Bit(strerror(errno)));
+        QMessageBox::warning(this, tr("Process Exp"), QString::fromLocal8Bit(strerror(errno)));
         return;
     }
     QSet<int> cur;
@@ -864,7 +869,7 @@ void MainWindow::copySelected()
 void MainWindow::save(bool ask)
 {
     if (ask || m_savePath.isEmpty()) {
-        QString fn = QFileDialog::getSaveFileName(this, tr("Save Process Explorer Data"), "Procexp.txt",
+        QString fn = QFileDialog::getSaveFileName(this, tr("Save Process Exp Data"), "process-exp.txt",
                                                   tr("Text files (*.txt);;All files (*)"));
         if (fn.isEmpty())
             return;
@@ -969,7 +974,7 @@ void MainWindow::setTray(bool on)
             m_tray = new QSystemTrayIcon(appIcon(), this);
             connect(m_tray, &QSystemTrayIcon::activated, this, [this] { showNormal(); raise(); activateWindow(); });
             auto *m = new QMenu(this);
-            m->addAction(tr("Show Process Explorer"), this, [this] { showNormal(); raise(); });
+            m->addAction(tr("Show Process Exp"), this, [this] { showNormal(); raise(); });
             m->addAction(aSysInfo);
             m->addSeparator();
             m->addAction(aExit);

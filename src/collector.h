@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-FileCopyrightText: 2026 Process Exp contributors
+
 #pragma once
 #include "types.h"
 

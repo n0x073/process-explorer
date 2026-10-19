@@ -1,9 +1,11 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# SPDX-FileCopyrightText: 2026 Process Exp contributors
 [Desktop Entry]
 Type=Application
-Name=Process Explorer
+Name=Process Exp
 GenericName=Process Manager
 Comment=Find out what files, libraries and sockets processes have open
-Exec=procexp
+Exec=process-exp
 Icon=utilities-system-monitor
 Categories=System;Monitor;
 Keywords=process;task;manager;kill;cpu;memory;
