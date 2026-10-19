@@ -45,6 +45,19 @@ This project is entirely vibe-coded. I didn't write the code myself. It was prod
 | Run as Administrator | `pkexec` |
 | Commit charge | `Committed_AS` relative to RAM + swap |
 
+## Installation
+
+### Fedora (Copr)
+
+Prebuilt packages for Fedora on x86_64 and aarch64 are available from the [n0x073/tools Copr repository](https://copr.fedorainfracloud.org/coprs/n0x073/tools/package/process-exp/):
+
+```bash
+sudo dnf copr enable n0x073/tools
+sudo dnf install process-exp
+```
+
+On other distributions, build the program from source as described below.
+
 ## Requirements
 
 - Linux 5.3 or newer (pidfd). Kernel 6.2 or newer gives cheaper file descriptor counting.
